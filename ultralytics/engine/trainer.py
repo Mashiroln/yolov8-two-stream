@@ -21,7 +21,7 @@ from torch import distributed as dist
 from torch import nn, optim
 
 from ultralytics.cfg import get_cfg, get_save_dir
-from ultralytics.data.utils import check_cls_dataset, check_det_dataset
+from ultralytics.data.utils import check_cls_dataset, check_det_dataset, check_two_stream_dataset
 from ultralytics.nn.tasks import attempt_load_one_weight, attempt_load_weights
 from ultralytics.utils import (
     DEFAULT_CFG,
@@ -129,14 +129,24 @@ class BaseTrainer:
         try:
             if self.args.task == "classify":
                 self.data = check_cls_dataset(self.args.data)
-            elif self.args.data.split(".")[-1] in ("yaml", "yml") or self.args.task in ("detect", "segment", "pose"):
+            # TODO: ccy
+            elif self.args.task == "two_stream":
+                self.data = check_two_stream_dataset(self.args.data)
+            elif self.args.data.split(".")[-1] in ("yaml", "yml") \
+                    or self.args.task in ("detect", "segment", "pose"):
                 self.data = check_det_dataset(self.args.data)
                 if "yaml_file" in self.data:
                     self.args.data = self.data["yaml_file"]  # for validating 'yolo train data=url.zip' usage
         except Exception as e:
             raise RuntimeError(emojis(f"Dataset '{clean_url(self.args.data)}' error ❌ {e}")) from e
 
-        self.trainset, self.testset = self.get_dataset(self.data)
+        # TODO: ccy
+        if self.args.task == 'two_stream':
+            self.trainset = {'rgb': self.data['train_rgb'], 'ir': self.data['train_ir']}
+            self.testset = {'rgb': self.data['val_rgb'], 'ir': self.data['val_ir']}
+        else:
+            self.trainset, self.testset = self.get_dataset(self.data)
+
         self.ema = None
 
         # Optimization utils init
@@ -283,12 +293,28 @@ class BaseTrainer:
 
         # Dataloaders
         batch_size = self.batch_size // max(world_size, 1)
-        self.train_loader = self.get_dataloader(self.trainset, batch_size=batch_size, rank=RANK, mode="train")
+
+        if  self.args.task == "two_stream":
+            self.train_loader = self.get_two_stream_dataloader(self.trainset['rgb'],
+                                                               self.trainset['ir'],
+                                                               batch_size=batch_size,
+                                                               rank=RANK,
+                                                               mode="train")
+        else:
+            self.train_loader = self.get_dataloader(self.trainset, batch_size=batch_size, rank=RANK, mode="train")
         if RANK in (-1, 0):
             # Note: When training DOTA dataset, double batch size could get OOM on images with >2000 objects.
-            self.test_loader = self.get_dataloader(
-                self.testset, batch_size=batch_size if self.args.task == "obb" else batch_size * 2, rank=-1, mode="val"
-            )
+            if self.args.task == "two_stream":
+                self.test_loader = self.get_two_stream_dataloader(self.testset['rgb'],
+                                                                  self.testset['ir'],
+                                                                  batch_size=batch_size,
+                                                                  rank=-1,
+                                                                  mode="val")
+            else:
+                self.test_loader = self.get_dataloader(
+                    self.testset, batch_size=batch_size if self.args.task == "obb" else batch_size * 2, rank=-1,
+                    mode="val"
+                )
             self.validator = self.get_validator()
             metric_keys = self.validator.metrics.keys + self.label_loss_items(prefix="val")
             self.metrics = dict(zip(metric_keys, [0] * len(metric_keys)))
@@ -373,6 +399,7 @@ class BaseTrainer:
                 # Forward
                 with torch.cuda.amp.autocast(self.amp):
                     batch = self.preprocess_batch(batch)
+                    # print(batch["img"].shape)
                     self.loss, self.loss_items = self.model(batch)
                     if RANK != -1:
                         self.loss *= world_size
@@ -408,8 +435,8 @@ class BaseTrainer:
                         % (f"{epoch + 1}/{self.epochs}", mem, *losses, batch["cls"].shape[0], batch["img"].shape[-1])
                     )
                     self.run_callbacks("on_batch_end")
-                    if self.args.plots and ni in self.plot_idx:
-                        self.plot_training_samples(batch, ni)
+                    # if self.args.plots and ni in self.plot_idx:
+                        # self.plot_training_samples(batch, ni)
 
                 self.run_callbacks("on_train_batch_end")
 
@@ -558,6 +585,10 @@ class BaseTrainer:
     def get_dataloader(self, dataset_path, batch_size=16, rank=0, mode="train"):
         """Returns dataloader derived from torch.data.Dataloader."""
         raise NotImplementedError("get_dataloader function not implemented in trainer")
+
+    def get_two_stream_dataloader(self, dataset_path1, dataset_path2, batch_size=16, rank=0, mode="train"):
+        """Returns dataloader derived from torch.data.Dataloader."""
+        raise NotImplementedError("get_two_stream_dataloader function not implemented in trainer")
 
     def build_dataset(self, img_path, mode="train", batch=None):
         """Build dataset."""

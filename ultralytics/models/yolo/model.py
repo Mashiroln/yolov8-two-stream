@@ -4,7 +4,8 @@ from pathlib import Path
 
 from ultralytics.engine.model import Model
 from ultralytics.models import yolo
-from ultralytics.nn.tasks import ClassificationModel, DetectionModel, OBBModel, PoseModel, SegmentationModel, WorldModel
+from ultralytics.nn.tasks import ClassificationModel, DetectionModel, OBBModel, PoseModel, SegmentationModel, \
+    WorldModel, TwoStreamModel
 from ultralytics.utils import yaml_load, ROOT
 
 
@@ -56,6 +57,12 @@ class YOLO(Model):
                 "validator": yolo.obb.OBBValidator,
                 "predictor": yolo.obb.OBBPredictor,
             },
+            "two_stream": {
+                "model": TwoStreamModel,
+                "trainer": yolo.two_stream.TwoStreamDetectionTrainer,
+                "validator": yolo.two_stream.TwoStreamDetectionValidator,
+                "predictor": yolo.two_stream.DetectionPredictor
+            }
         }
 
 

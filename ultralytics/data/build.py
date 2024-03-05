@@ -22,8 +22,9 @@ from ultralytics.data.loaders import (
 from ultralytics.data.utils import IMG_FORMATS, VID_FORMATS
 from ultralytics.utils import RANK, colorstr
 from ultralytics.utils.checks import check_file
-from .dataset import YOLODataset
+from .dataset import YOLODataset, LoadMultiModalImagesAndLabels
 from .utils import PIN_MEMORY
+from ..utils.torch_utils import torch_distributed_zero_first
 
 
 class InfiniteDataLoader(dataloader.DataLoader):
@@ -77,7 +78,7 @@ class _RepeatSampler:
 
 def seed_worker(worker_id):  # noqa
     """Set dataloader worker seed https://pytorch.org/docs/stable/notes/randomness.html#dataloader."""
-    worker_seed = torch.initial_seed() % 2**32
+    worker_seed = torch.initial_seed() % 2 ** 32
     np.random.seed(worker_seed)
     random.seed(worker_seed)
 
@@ -122,6 +123,77 @@ def build_dataloader(dataset, batch, workers, shuffle=True, rank=-1):
         worker_init_fn=seed_worker,
         generator=generator,
     )
+
+
+def build_two_stream_dataset(cfg, path1, path2, batch, mode="train", rect=False, stride=32):
+    hyp = {
+        'lr0': 0.01,
+        'lrf': 0.2,
+        'momentum': 0.937,
+        'weight_decay': 0.0005,
+        'warmup_epochs': 3.0,
+        'warmup_momentum': 0.8,
+        'warmup_bias_lr': 0.1,
+        'box': 0.05,
+        'cls': 0.5,
+        'cls_pw': 1.0,
+        'obj': 1.0,
+        'obj_pw': 1.0,
+        'iou_t': 0.20,
+        'anchor_t': 4.0,
+        'fl_gamma': 0.0,
+        'hsv_h': 0.0,
+        'hsv_s': 0.0,
+        'hsv_v': 0.0,
+        'degrees': 0.0,
+        'translate': 0.0,
+        'scale': 0.0,
+        'shear': 0.0,
+        'perspective': 0.0,
+        'flipud': 0.0,
+        'fliplr': 0.0,
+        'mosaic': 0.0,
+        'mixup': 0.0
+    }
+    """Build two stream dataset"""
+    dataset = LoadMultiModalImagesAndLabels(
+        path_rgb=path1,
+        path_ir=path2,
+        img_size=cfg.imgsz,
+        batch_size=batch,
+        augment=mode == "train",  # augment images
+        hyp=hyp,  # augmentation hyperparameters
+        rect=rect,  # rectangular training
+        cache_images=cfg.cache,
+        single_cls=cfg.single_cls,
+        stride=int(stride),
+        pad=0.0 if mode == "train" else 0.5,
+        image_weights=False,
+        prefix=colorstr(f"{mode}: "), )
+    return dataset
+
+
+def build_two_stream_dataloader(dataset, batch_size, rank=-1, world_size=1,
+                                workers=8, image_weights=False, quad=False):
+    # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
+    batch_size = min(batch_size, len(dataset))
+    nw = min([os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, workers])  # number of workers
+    sampler = torch.utils.data.distributed.DistributedSampler(dataset) if rank != -1 else None
+    loader = torch.utils.data.DataLoader if image_weights else InfiniteDataLoader
+
+    # global_var.set_value('s', torch.randperm(len(dataset)).tolist())
+    # sampler = RandomSampler(dataset)
+
+    # sampler = torch.utils.data.sampler.RandomSampler(dataset)
+
+    # Use torch.utils.data.DataLoader() if dataset.properties will update during training else InfiniteDataLoader()
+    return loader(dataset,
+                  batch_size=batch_size,
+                  num_workers=nw,
+                  sampler=sampler,
+                  pin_memory=True,
+                  collate_fn=LoadMultiModalImagesAndLabels.collate_fn4 \
+                      if quad else LoadMultiModalImagesAndLabels.collate_fn)
 
 
 def check_source(source):

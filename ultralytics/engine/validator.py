@@ -28,7 +28,7 @@ import numpy as np
 import torch
 
 from ultralytics.cfg import get_cfg, get_save_dir
-from ultralytics.data.utils import check_cls_dataset, check_det_dataset
+from ultralytics.data.utils import check_cls_dataset, check_det_dataset, check_two_stream_dataset
 from ultralytics.nn.autobackend import AutoBackend
 from ultralytics.utils import LOGGER, TQDM, callbacks, colorstr, emojis
 from ultralytics.utils.checks import check_imgsz
@@ -139,7 +139,9 @@ class BaseValidator:
                 self.args.batch = 1  # export.py models default to batch-size 1
                 LOGGER.info(f"Forcing batch=1 square inference (1,3,{imgsz},{imgsz}) for non-PyTorch models")
 
-            if str(self.args.data).split(".")[-1] in ("yaml", "yml"):
+            if self.args.task == "two_stream":
+                self.data = check_two_stream_dataset(self.args.data)
+            elif str(self.args.data).split(".")[-1] in ("yaml", "yml"):
                 self.data = check_det_dataset(self.args.data)
             elif self.args.task == "classify":
                 self.data = check_cls_dataset(self.args.data, split=self.args.split)
@@ -151,7 +153,14 @@ class BaseValidator:
             if not pt:
                 self.args.rect = False
             self.stride = model.stride  # used in get_dataloader() for padding
-            self.dataloader = self.dataloader or self.get_dataloader(self.data.get(self.args.split), self.args.batch)
+
+            if self.args.task == "two_stream":
+                self.valset = {'rgb': self.data['val_rgb'], 'ir': self.data['val_ir']}
+                self.dataloader = self.get_two_stream_dataloader(self.valset['rgb'],
+                                                                 self.valset['ir'],
+                                                                 batch_size=self.args.batch)
+            else:
+                self.dataloader = self.dataloader or self.get_dataloader(self.data.get(self.args.split), self.args.batch)
 
             model.eval()
             model.warmup(imgsz=(1 if pt else self.args.batch, 3, imgsz, imgsz))  # warmup
@@ -270,6 +279,10 @@ class BaseValidator:
     def get_dataloader(self, dataset_path, batch_size):
         """Get data loader from dataset path and batch size."""
         raise NotImplementedError("get_dataloader function not implemented for this validator")
+
+    def get_two_stream_dataloader(self, path1, path2, batch_size=16):
+        """Get data loader from dataset path and batch size."""
+        raise NotImplementedError("get_two_stream_dataloader function not implemented for this validator")
 
     def build_dataset(self, img_path):
         """Build dataset."""

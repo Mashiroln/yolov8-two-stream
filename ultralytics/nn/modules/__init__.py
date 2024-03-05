@@ -18,6 +18,8 @@ Example:
 """
 
 from .block import (
+    Add,
+    Add2,
     C1,
     C2,
     C3,
@@ -42,6 +44,7 @@ from .block import (
     BNContrastiveHead,
 )
 from .conv import (
+    InitConv,
     CBAM,
     ChannelAttention,
     Concat,
@@ -58,6 +61,7 @@ from .conv import (
 )
 from .head import OBB, Classify, Detect, Pose, RTDETRDecoder, Segment, WorldDetect
 from .transformer import (
+    GPT,
     AIFI,
     MLP,
     DeformableTransformerDecoder,
@@ -71,6 +75,9 @@ from .transformer import (
 )
 
 __all__ = (
+    "Add",
+    "Add2",
+    "GPT",
     "Conv",
     "Conv2",
     "LightConv",

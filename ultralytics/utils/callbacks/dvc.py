@@ -54,7 +54,7 @@ def _log_confusion_matrix(validator):
     preds = []
     matrix = validator.confusion_matrix.matrix
     names = list(validator.names.values())
-    if validator.confusion_matrix.task == "detect":
+    if validator.confusion_matrix.task == "detect" or validator.confusion_matrix.task == "two_stream":
         names += ["background"]
 
     for ti, pred in enumerate(matrix.T.astype(int)):

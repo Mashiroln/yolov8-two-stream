@@ -584,7 +584,7 @@ class Exporter:
         if self.model.task == "classify":
             classifier_config = ct.ClassifierConfig(list(self.model.names.values())) if self.args.nms else None
             model = self.model
-        elif self.model.task == "detect":
+        elif self.model.task == "detect" or self.args.task == "two_stream":
             model = IOSDetectModel(self.model, self.im) if self.args.nms else self.model
         else:
             if self.args.nms:
