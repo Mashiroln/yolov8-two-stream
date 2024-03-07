@@ -8,10 +8,10 @@ from copy import copy
 import numpy as np
 import torch.nn as nn
 
-from ultralytics.data import build_dataloader, build_yolo_dataset, build_two_stream_dataloader, build_two_stream_dataset
+from ultralytics.data import build_yolo_dataset, build_two_stream_dataloader, build_two_stream_dataset
 from ultralytics.engine.trainer import BaseTrainer
 from ultralytics.models import yolo
-from ultralytics.nn.tasks import DetectionModel, TwoStreamModel
+from ultralytics.nn.tasks import TwoStreamModel
 from ultralytics.utils import LOGGER, RANK
 from ultralytics.utils.plotting import plot_images, plot_labels, plot_results
 from ultralytics.utils.torch_utils import de_parallel, torch_distributed_zero_first

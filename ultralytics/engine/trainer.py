@@ -294,7 +294,7 @@ class BaseTrainer:
         # Dataloaders
         batch_size = self.batch_size // max(world_size, 1)
 
-        if  self.args.task == "two_stream":
+        if self.args.task == "two_stream":
             self.train_loader = self.get_two_stream_dataloader(self.trainset['rgb'],
                                                                self.trainset['ir'],
                                                                batch_size=batch_size,
@@ -307,7 +307,7 @@ class BaseTrainer:
             if self.args.task == "two_stream":
                 self.test_loader = self.get_two_stream_dataloader(self.testset['rgb'],
                                                                   self.testset['ir'],
-                                                                  batch_size=batch_size,
+                                                                  batch_size=batch_size * 2,
                                                                   rank=-1,
                                                                   mode="val")
             else:
@@ -435,8 +435,8 @@ class BaseTrainer:
                         % (f"{epoch + 1}/{self.epochs}", mem, *losses, batch["cls"].shape[0], batch["img"].shape[-1])
                     )
                     self.run_callbacks("on_batch_end")
-                    # if self.args.plots and ni in self.plot_idx:
-                        # self.plot_training_samples(batch, ni)
+                    if self.args.plots and ni in self.plot_idx:
+                        self.plot_training_samples(batch, ni)
 
                 self.run_callbacks("on_train_batch_end")
 

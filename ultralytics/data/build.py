@@ -128,13 +128,13 @@ def build_dataloader(dataset, batch, workers, shuffle=True, rank=-1):
 def build_two_stream_dataset(cfg, path1, path2, batch, mode="train", rect=False, stride=32):
     hyp = {
         'lr0': 0.01,
-        'lrf': 0.2,
+        'lrf': 0.01,
         'momentum': 0.937,
         'weight_decay': 0.0005,
         'warmup_epochs': 3.0,
         'warmup_momentum': 0.8,
         'warmup_bias_lr': 0.1,
-        'box': 0.05,
+        'box': 7.5,
         'cls': 0.5,
         'cls_pw': 1.0,
         'obj': 1.0,
@@ -192,8 +192,7 @@ def build_two_stream_dataloader(dataset, batch_size, rank=-1, world_size=1,
                   num_workers=nw,
                   sampler=sampler,
                   pin_memory=True,
-                  collate_fn=LoadMultiModalImagesAndLabels.collate_fn4 \
-                      if quad else LoadMultiModalImagesAndLabels.collate_fn)
+                  collate_fn=LoadMultiModalImagesAndLabels.collate_fn4 if quad else LoadMultiModalImagesAndLabels.collate_fn)
 
 
 def check_source(source):

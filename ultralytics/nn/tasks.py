@@ -365,9 +365,9 @@ class TwoStreamModel(BaseModel):
         if isinstance(m, Detect):  # includes all Detect subclasses like Segment, Pose, OBB, WorldDetect
             s = 256  # 2x min stride
             m.inplace = self.inplace
-            # forward = lambda x: self.forward(x)[0] if isinstance(m, (Segment, Pose, OBB)) else self.forward(x)
-            # m.stride = torch.tensor([s / x.shape[-2] for x in forward(torch.zeros(1, ch, s, s))])  # forward
-            m.stride = torch.Tensor([8.0, 16.0, 32.0])
+            forward = lambda x: self.forward(x)[0] if isinstance(m, (Segment, Pose, OBB)) else self.forward(x)
+            m.stride = torch.tensor([s / x.shape[-2] for x in forward(torch.zeros(1, ch, s, s))])  # forward
+            # m.stride = torch.Tensor([8.0, 16.0, 32.0])
             self.stride = m.stride
             m.bias_init()  # only run once
         else:
@@ -385,8 +385,8 @@ class TwoStreamModel(BaseModel):
         y, dt, embeddings = [], [], []  # outputs
         x2 = x
         if x.size(1) == 6 and self.spilt_tag is False:
-            x2 = x[:, :3, :, :]
-            x = x[:, 3:, :, :]
+            x2 = x[:, 3:, :, :]
+            x = x[:, :3, :, :]
             self.spilt_tag = True
             # print("Now spilt_tag is True")
 

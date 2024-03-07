@@ -34,7 +34,7 @@ class LoadMultiModalImagesAndLabels(BaseDataset):  # for training/testing
 
     def __init__(self, path_rgb, path_ir, img_size=640, batch_size=16, augment=False, hyp=None, rect=False,
                  image_weights=False,
-                 cache_images=False, single_cls=False, stride=32, pad=0.0, prefix='', task="detect", ):
+                 cache_images=False, single_cls=False, stride=32, pad=0.0, prefix=''):
         # super().__init__()
         self.img_size = img_size
         self.augment = augment
@@ -256,14 +256,15 @@ class LoadMultiModalImagesAndLabels(BaseDataset):  # for training/testing
         for (idx, item) in enumerate(labels_rgb):
             label_dict = {
                 "bbox_format": 'xywh',
-                "bboxes": item[:, 0],
+                "bboxes": item[:, 1:],
                 "normalized": True,
                 "im_file": self.label_files_rgb[idx],
                 'segments': [],
                 'keypoints': None,
                 "shape": (),
-                "cls": item[:, 1:],
+                "cls": item[:, 0],
             }
+            # print(label_dict['bboxes'])
             self.labels.append(label_dict)
 
         self.shapes = self.shapes_rgb
@@ -408,6 +409,8 @@ class LoadMultiModalImagesAndLabels(BaseDataset):  # for training/testing
 
         zeros, cls, bboxes = torch.split(labels_out, [1, 1, 4], dim=1)
         batch_idx = torch.tensor([self.batch_rgb[index]] * nL)
+        self.labels[index]["bboxes"] = labels_out[:, 1:]
+
         item = {
             "im_file": self.img_files_rgb[index],
             "img": torch.from_numpy(img_all),
