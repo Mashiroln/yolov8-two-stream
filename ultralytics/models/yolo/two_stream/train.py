@@ -67,11 +67,13 @@ class TwoStreamDetectionTrainer(BaseTrainer):
         world_size = int(os.environ['WORLD_SIZE']) if 'WORLD_SIZE' in os.environ else 1
         image_weights = False
         quad = False
-        return build_two_stream_dataloader(dataset, batch_size, rank,
+
+        dataloader = build_two_stream_dataloader(dataset, batch_size, rank,
                                            world_size=world_size,
                                            workers=workers,
                                            image_weights=image_weights,
                                            quad=quad)  # return dataloader
+        return dataloader
 
     def preprocess_batch(self, batch):
         """Preprocesses a batch of images by scaling and converting to float."""
@@ -141,8 +143,12 @@ class TwoStreamDetectionTrainer(BaseTrainer):
 
     def plot_training_samples(self, batch, ni):
         """Plots training samples with their annotations."""
+        # for (idx, item) in enumerate(batch["im_file"]):
+        #     if os.path.basename(item) == '1478.png':
+        #         _img = batch["bboxes"][idx]
+        #         print("!!!")
         plot_images(
-            images=batch["img"],
+            images=batch["img"][:, :3, :, :],
             batch_idx=batch["batch_idx"],
             cls=batch["cls"].squeeze(-1),
             bboxes=batch["bboxes"],

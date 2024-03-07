@@ -253,7 +253,7 @@ class TwoStreamDetectionValidator(BaseValidator):
     def plot_val_samples(self, batch, ni):
         """Plot validation image samples."""
         plot_images(
-            batch["img"],
+            batch["img"][:, :3, :, :],
             batch["batch_idx"],
             batch["cls"].squeeze(-1),
             batch["bboxes"],

@@ -408,8 +408,9 @@ class LoadMultiModalImagesAndLabels(BaseDataset):  # for training/testing
         img_all = np.concatenate((img_rgb, img_ir), axis=0)
 
         zeros, cls, bboxes = torch.split(labels_out, [1, 1, 4], dim=1)
-        batch_idx = torch.tensor([self.batch_rgb[index]] * nL)
-        self.labels[index]["bboxes"] = labels_out[:, 1:]
+        # batch_idx = torch.tensor([self.batch_rgb[index]] * nL)
+        batch_idx = torch.zeros(nL)
+        self.labels[index]["bboxes"] = bboxes
 
         item = {
             "im_file": self.img_files_rgb[index],
@@ -431,6 +432,11 @@ class LoadMultiModalImagesAndLabels(BaseDataset):  # for training/testing
         #     l[:, 0] = i  # add target image index for build_targets()
         # return torch.stack(img, 0), torch.cat(label, 0), path, shapes
         """Collates data samples into batches."""
+        # for (idx, item) in enumerate(batch):
+        #     if os.path.basename(item["im_file"]) == '1478.png':
+        #         _img = item["bboxes"]
+        #         print("!!!")
+
         new_batch = {}
         keys = batch[0].keys()
         values = list(zip(*[list(b.values()) for b in batch]))

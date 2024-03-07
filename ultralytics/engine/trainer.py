@@ -300,6 +300,12 @@ class BaseTrainer:
                                                                batch_size=batch_size,
                                                                rank=RANK,
                                                                mode="train")
+            # for (i, batch) in enumerate(self.train_loader):
+            #     for (idx, item) in enumerate(batch["im_file"]):
+            #         if os.path.basename(item) == '1478.png':
+            #             _img = batch["bboxes"][idx]
+            #             print("!!!1")
+
         else:
             self.train_loader = self.get_dataloader(self.trainset, batch_size=batch_size, rank=RANK, mode="train")
         if RANK in (-1, 0):
@@ -348,6 +354,7 @@ class BaseTrainer:
         self._setup_train(world_size)
 
         nb = len(self.train_loader)  # number of batches
+
         nw = max(round(self.args.warmup_epochs * nb), 100) if self.args.warmup_epochs > 0 else -1  # warmup iterations
         last_opt_step = -1
         self.epoch_time = None
@@ -374,7 +381,7 @@ class BaseTrainer:
             # Update dataloader attributes (optional)
             if epoch == (self.epochs - self.args.close_mosaic):
                 self._close_dataloader_mosaic()
-                self.train_loader.reset()
+                # self.train_loader.reset()
 
             if RANK in (-1, 0):
                 LOGGER.info(self.progress_string())
@@ -398,6 +405,7 @@ class BaseTrainer:
 
                 # Forward
                 with torch.cuda.amp.autocast(self.amp):
+
                     batch = self.preprocess_batch(batch)
                     # print(batch["img"].shape)
                     self.loss, self.loss_items = self.model(batch)
